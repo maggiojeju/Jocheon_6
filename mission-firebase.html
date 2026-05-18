@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>수학여행 미션 생성기 (Firebase)</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, sans-serif; background: #f5f5f5; min-height: 100vh; }
+        .header { background: white; border-bottom: 1px solid #e0e0e0; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .logo { font-size: 20px; font-weight: 600; color: #667eea; }
+        .header-buttons { display: flex; gap: 12px; }
+        .container { max-width: 800px; margin: 40px auto; padding: 0 20px; }
+        .card { background: white; border-radius: 8px; margin-bottom: 16px; border: 1px solid #e0e0e0; overflow: hidden; }
+        .card-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 24px; color: white; }
+        .card-title { font-size: 32px; font-weight: 400; margin-bottom: 8px; border: none; background: transparent; color: white; width: 100%; }
+        .card-title::placeholder { color: rgba(255,255,255,0.7); }
+        .card-description { font-size: 14px; margin-top: 8px; border: none; background: transparent; color: white; width: 100%; resize: none; }
+        .card-body { padding: 24px; }
+        .question-card { background: white; border-radius: 8px; margin-bottom: 16px; border: 1px solid #e0e0e0; padding: 24px; }
+        .question-card:hover { border-color: #667eea; }
+        .question-header { display: flex; gap: 12px; margin-bottom: 16px; }
+        .question-number { color: #667eea; font-weight: 600; min-width: 30px; }
+        .question-content { flex: 1; }
+        input[type="text"], textarea { width: 100%; padding: 12px; border: none; border-bottom: 1px solid #e0e0e0; font-size: 16px; font-family: inherit; }
+        input:focus, textarea:focus { outline: none; border-bottom: 2px solid #667eea; }
+        textarea { resize: vertical; min-height: 80px; border: 1px solid #e0e0e0; border-radius: 4px; padding: 12px; }
+        .image-section { margin-top: 16px; padding-top: 16px; border-top: 1px solid #f0f0f0; }
+        .image-label { display: block; font-size: 14px; color: #666; margin-bottom: 8px; }
+        .image-upload-btn { display: inline-block; padding: 8px 16px; background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 4px; cursor: pointer; font-size: 14px; color: #666; }
+        .image-upload-btn:hover { background: #e9ecef; border-color: #667eea; color: #667eea; }
+        .image-preview { margin-top: 12px; position: relative; }
+        .image-preview img { max-width: 100%; max-height: 300px; border-radius: 8px; border: 1px solid #e0e0e0; }
+        .image-remove-btn { position: absolute; top: 8px; right: 8px; padding: 4px 8px; background: rgba(220,53,69,0.9); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }
+        .question-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; padding-top: 16px; border-top: 1px solid #f0f0f0; }
+        button { padding: 10px 20px; border: none; border-radius: 4px; font-size: 14px; font-weight: 500; cursor: pointer; }
+        .btn-primary { background: #667eea; color: white; }
+        .btn-secondary { background: white; color: #666; border: 1px solid #e0e0e0; }
+        .btn-danger { background: white; color: #dc3545; border: 1px solid #e0e0e0; }
+        .add-question-btn { margin: 20px 0; width: 100%; padding: 16px; background: white; border: 2px dashed #e0e0e0; color: #666; font-size: 16px; }
+        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+        .modal.active { display: flex; }
+        .modal-content { background: white; border-radius: 8px; padding: 32px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; }
+        .modal-header { font-size: 24px; font-weight: 600; color: #333; margin-bottom: 20px; }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; }
+        .input-group { margin-bottom: 20px; }
+        .input-group label { display: block; font-weight: 600; color: #333; margin-bottom: 8px; font-size: 14px; }
+        .success-message { background: #d4edda; color: #155724; padding: 12px; border-radius: 4px; margin-bottom: 16px; display: none; }
+        .success-message.show { display: block; }
+        .info-banner { background: #e3f2fd; border-left: 4px solid #2196F3; padding: 16px; margin-bottom: 20px; border-radius: 4px; }
+        .info-banner p { color: #1565c0; font-size: 14px; line-height: 1.6; margin-bottom: 8px; }
+        .warning-banner { background: #fff3cd; border-left: 4px solid #ffc107; padding: 16px; margin-bottom: 20px; border-radius: 4px; }
+        .warning-banner p { color: #856404; font-size: 14px; line-height: 1.6; }
+        .firebase-config { background: #f8f9fa; padding: 12px; border-radius: 4px; border: 1px solid #e0e0e0; font-family: monospace; font-size: 12px; margin-bottom: 12px; white-space: pre-wrap; word-break: break-all; }
+        .template-btn { width: 100%; margin-bottom: 8px; }
+        input[type="file"] { display: none; }
+        .step-number { display: inline-block; background: #667eea; color: white; width: 24px; height: 24px; border-radius: 50%; text-align: center; line-height: 24px; font-weight: 600; margin-right: 8px; }
+        .code-block { background: #2d2d2d; color: #f8f8f2; padding: 16px; border-radius: 4px; margin: 12px 0; overflow-x: auto; }
+        .code-block code { font-family: 'Courier New', monospace; font-size: 13px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">🎒 수학여행 미션 (Firebase)</div>
+        <div class="header-buttons">
+            <button class="btn-secondary" onclick="openSetupModal()">Firebase 설정</button>
+            <button class="btn-secondary" onclick="openTemplateModal()">템플릿</button>
+            <button class="btn-primary" onclick="saveAndShare()">저장</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <div class="card-header">
+                <input type="text" class="card-title" id="formTitle" value="수학여행 미션">
+                <textarea class="card-description" id="formDescription" rows="2">미션을 수행하고 답변을 제출하세요!</textarea>
+            </div>
+            <div class="card-body">
+                <div class="input-group">
+                    <label>반 이름</label>
+                    <input type="text" id="className" placeholder="예: 1학년 3반">
+                </div>
+                <div class="input-group">
+                    <label>담당 선생님</label>
+                    <input type="text" id="teacherName" placeholder="예: 홍길동">
+                </div>
+            </div>
+        </div>
+        <div id="questionsContainer"></div>
+        <button class="add-question-btn" onclick="addQuestion()">➕ 미션 추가</button>
+    </div>
+
+    <!-- Firebase 설정 모달 -->
+    <div class="modal" id="setupModal">
+        <div class="modal-content">
+            <div class="modal-header">🔥 Firebase 설정 가이드</div>
+            
+            <div class="info-banner">
+                <p><strong>5분이면 완료됩니다!</strong></p>
+                <p>아래 단계를 따라하시면 학생 답변이 실시간으로 Firebase에 저장됩니다.</p>
+            </div>
+
+            <div style="margin-bottom: 24px;">
+                <h3 style="font-size: 16px; margin-bottom: 12px; color: #333;">
+                    <span class="step-number">1</span>Firebase 프로젝트 만들기
+                </h3>
+                <ol style="margin-left: 40px; line-height: 1.8; color: #666;">
+                    <li><a href="https://console.firebase.google.com/" target="_blank" style="color: #667eea;">Firebase Console</a> 접속</li>
+                    <li>"프로젝트 추가" 클릭</li>
+                    <li>프로젝트 이름: "수학여행미션" 입력</li>
+                    <li>Google 애널리틱스: 사용 안함 선택 (선택사항)</li>
+                    <li>"프로젝트 만들기" 클릭</li>
+                </ol>
+            </div>
+
+            <div style="margin-bottom: 24px;">
+                <h3 style="font-size: 16px; margin-bottom: 12px; color: #333;">
+                    <span class="step-number">2</span>Realtime Database 만들기
+                </h3>
+                <ol style="margin-left: 40px; line-height: 1.8; color: #666;">
+                    <li>좌측 메뉴에서 "빌드" → "Realtime Database" 클릭</li>
+                    <li>"데이터베이스 만들기" 클릭</li>
+                    <li>위치: "asia-southeast1" 선택</li>
+                    <li>보안 규칙: <strong>"테스트 모드에서 시작"</strong> 선택</li>
+                    <li>"사용 설정" 클릭</li>
+                </ol>
+            </div>
+
+            <div style="margin-bottom: 24px;">
+                <h3 style="font-size: 16px; margin-bottom: 12px; color: #333;">
+                    <span class="step-number">3</span>웹 앱 추가 및 설정 복사
+                </h3>
+                <ol style="margin-left: 40px; line-height: 1.8; color: #666;">
+                    <li>프로젝트 개요 옆 ⚙️ 아이콘 → "프로젝트 설정" 클릭</li>
+                    <li>아래로 스크롤하여 "내 앱" 섹션 찾기</li>
+                    <li>웹 앱 아이콘 (<span style="font-family: monospace;">&lt;/&gt;</span>) 클릭</li>
+                    <li>앱 닉네임: "미션트래커" 입력</li>
+                    <li>"앱 등록" 클릭</li>
+                    <li><strong>firebaseConfig 부분을 아래 입력란에 붙여넣기</strong></li>
+                </ol>
+            </div>
+
+            <div class="input-group">
+                <label>Firebase 설정 붙여넣기</label>
+                <textarea id="firebaseConfigInput" style="font-family: monospace; font-size: 12px; min-height: 200px;" placeholder='{
+  "apiKey": "여기에-붙여넣기",
+  "authDomain": "프로젝트.firebaseapp.com",
+  "databaseURL": "https://프로젝트.firebaseio.com",
+  "projectId": "프로젝트-id",
+  "storageBucket": "프로젝트.appspot.com",
+  "messagingSenderId": "숫자",
+  "appId": "앱-아이디"
+}'></textarea>
+                <p style="font-size: 12px; color: #666; margin-top: 4px;">
+                    Firebase Console에서 복사한 설정을 그대로 붙여넣으세요
+                </p>
+            </div>
+
+            <div class="warning-banner">
+                <p><strong>⚠️ 중요:</strong> Firebase 설정을 입력해야 학생 답변이 저장됩니다!</p>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeSetupModal()">닫기</button>
+                <button class="btn-primary" onclick="saveFirebaseConfig()">설정 저장</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 저장 모달 -->
+    <div class="modal" id="shareModal">
+        <div class="modal-content">
+            <div class="modal-header">미션 저장</div>
+            <div class="success-message" id="successMessage">✅ 저장 완료!</div>
+            <div class="info-banner">
+                <p>📱 학생용 HTML 파일을 다운로드하여 공유하세요</p>
+                <p>학생들의 답변은 Firebase에 실시간으로 저장됩니다</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal()">닫기</button>
+                <button class="btn-primary" onclick="downloadPage()">HTML 다운로드</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 템플릿 모달 -->
+    <div class="modal" id="templateModal">
+        <div class="modal-content">
+            <div class="modal-header">템플릿 선택</div>
+            <button class="btn-secondary template-btn" onclick="applyTemplate('jeju')">🏝️ 제주도 수학여행</button>
+            <button class="btn-secondary template-btn" onclick="applyTemplate('gyeongju')">🏛️ 경주 수학여행</button>
+            <button class="btn-secondary template-btn" onclick="applyTemplate('general')">📝 일반 미션</button>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeTemplateModal()">닫기</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let questions = [];
+        let id = 1;
+        let firebaseConfig = null;
+
+        // 저장된 Firebase 설정 로드
+        function loadFirebaseConfig() {
+            const saved = localStorage.getItem('firebaseConfig');
+            if (saved) {
+                try {
+                    firebaseConfig = JSON.parse(saved);
+                } catch(e) {
+                    console.error('Firebase 설정 로드 실패');
+                }
+            }
+        }
+
+        function init() {
+            loadFirebaseConfig();
+            for(let i=0; i<3; i++) addQuestion();
+            
+            // Firebase 설정이 없으면 모달 표시
+            if (!firebaseConfig) {
+                setTimeout(() => {
+                    openSetupModal();
+                }, 500);
+            }
+        }
+
+        function openSetupModal() {
+            document.getElementById('setupModal').classList.add('active');
+            if (firebaseConfig) {
+                document.getElementById('firebaseConfigInput').value = JSON.stringify(firebaseConfig, null, 2);
+            }
+        }
+
+        function closeSetupModal() {
+            document.getElementById('setupModal').classList.remove('active');
+        }
+
+        function saveFirebaseConfig() {
+            const input = document.getElementById('firebaseConfigInput').value.trim();
+            if (!input) {
+                alert('Firebase 설정을 입력해주세요');
+                return;
+            }
+            
+            try {
+                const config = JSON.parse(input);
+                if (!config.apiKey || !config.databaseURL) {
+                    alert('올바른 Firebase 설정이 아닙니다');
+                    return;
+                }
+                
+                firebaseConfig = config;
+                localStorage.setItem('firebaseConfig', JSON.stringify(config));
+                alert('Firebase 설정이 저장되었습니다! ✅');
+                closeSetupModal();
+            } catch(e) {
+                alert('JSON 형식이 올바르지 않습니다. Firebase Console에서 복사한 내용을 그대로 붙여넣으세요.');
+            }
+        }
+
+        function addQuestion() {
+            questions.push({id: id++, title: '', description: '', image: null});
+            render();
+        }
+
+        function deleteQuestion(qid) {
+            if(questions.length <= 1) { alert('최소 1개 필요'); return; }
+            questions = questions.filter(q => q.id !== qid);
+            render();
+        }
+
+        function render() {
+            const c = document.getElementById('questionsContainer');
+            c.innerHTML = '';
+            questions.forEach((q, i) => {
+                const d = document.createElement('div');
+                d.className = 'question-card';
+                d.innerHTML = `
+                    <div class="question-header">
+                        <div class="question-number">${i+1}.</div>
+                        <div class="question-content">
+                            <input type="text" placeholder="미션 제목" value="${q.title}" onchange="updateQ(${q.id},'title',this.value)">
+                            <textarea placeholder="미션 설명" onchange="updateQ(${q.id},'description',this.value)">${q.description}</textarea>
+                            <div class="image-section">
+                                <label class="image-label">📷 이미지 (선택)</label>
+                                <label class="image-upload-btn" for="img-${q.id}">🖼️ 선택</label>
+                                <input type="file" id="img-${q.id}" accept="image/*" onchange="handleImg(${q.id},this)">
+                                ${q.image ? `<div class="image-preview"><img src="${q.image}"><button class="image-remove-btn" onclick="removeImg(${q.id})">✕</button></div>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="question-actions">
+                        <button class="btn-danger" onclick="deleteQuestion(${q.id})">🗑️ 삭제</button>
+                    </div>
+                `;
+                c.appendChild(d);
+            });
+        }
+
+        function updateQ(qid, field, value) {
+            const q = questions.find(x => x.id === qid);
+            if(q) q[field] = value;
+        }
+
+        function handleImg(qid, input) {
+            const file = input.files[0];
+            if(!file) return;
+            if(file.size > 5*1024*1024) { alert('5MB 이하만 가능'); input.value=''; return; }
+            const reader = new FileReader();
+            reader.onload = e => {
+                const q = questions.find(x => x.id === qid);
+                if(q) { q.image = e.target.result; render(); }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function removeImg(qid) {
+            const q = questions.find(x => x.id === qid);
+            if(q) { q.image = null; render(); }
+        }
+
+        function saveAndShare() {
+            if(!firebaseConfig) {
+                alert('먼저 Firebase 설정을 완료해주세요!');
+                openSetupModal();
+                return;
+            }
+            
+            if(!document.getElementById('formTitle').value.trim()) { alert('제목 입력 필요'); return; }
+            if(!document.getElementById('className').value.trim()) { alert('반 이름 필요'); return; }
+            document.getElementById('successMessage').classList.add('show');
+            document.getElementById('shareModal').classList.add('active');
+        }
+
+        function downloadPage() {
+            const data = {
+                title: document.getElementById('formTitle').value,
+                description: document.getElementById('formDescription').value,
+                className: document.getElementById('className').value,
+                teacher: document.getElementById('teacherName').value,
+                firebaseConfig: firebaseConfig,
+                missions: questions.map((q,i) => ({id:i+1, name:q.title||'미션 '+(i+1), description:q.description||'', image:q.image}))
+            };
+            const html = generateHTML(data);
+            const blob = new Blob([html], {type:'text/html'});
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `미션_${data.className.replace(/\s/g,'_')}_Firebase.html`;
+            a.click();
+        }
+
+        function generateHTML(d) {
+            const configStr = JSON.stringify(d.firebaseConfig);
+            const missionsStr = JSON.stringify(d.missions);
+            
+            return `<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${d.title}</title>
+    <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;padding:20px}.container{max-width:600px;margin:0 auto}.card{background:white;border-radius:16px;padding:24px;margin-bottom:20px;box-shadow:0 8px 24px rgba(0,0,0,0.15)}h1{color:#667eea;font-size:24px;margin-bottom:8px;text-align:center}.subtitle{text-align:center;color:#666;font-size:14px;margin-bottom:16px}.class-info{text-align:center;background:#f8f9fa;padding:12px;border-radius:8px;margin-bottom:24px;font-size:14px;color:#333}.input-group{margin-bottom:20px}label{display:block;font-weight:600;color:#333;margin-bottom:8px;font-size:14px}input,select,textarea{width:100%;padding:12px;border:2px solid #e0e0e0;border-radius:8px;font-size:16px}input:focus,select:focus,textarea:focus{outline:none;border-color:#667eea}textarea{resize:vertical;min-height:100px;font-family:inherit}button{width:100%;padding:14px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;border:none;border-radius:8px;font-size:16px;font-weight:600;cursor:pointer}.mission-image{width:100%;max-height:300px;object-fit:cover;border-radius:8px;margin-bottom:16px}.mission-list{margin-top:20px}.mission-item{display:flex;justify-content:space-between;align-items:center;padding:12px;background:#f8f9fa;border-radius:8px;margin-bottom:8px}.mission-item.completed{background:#d4edda}.mission-name{font-weight:600;color:#333}.mission-status{font-size:12px;padding:4px 12px;border-radius:12px;font-weight:600}.status-completed{background:#28a745;color:white}.status-pending{background:#ffc107;color:#333}.welcome-screen,.mission-screen,.summary-screen{display:none}.welcome-screen.active,.mission-screen.active,.summary-screen.active{display:block}.progress-bar{height:8px;background:#e0e0e0;border-radius:4px;overflow:hidden;margin-bottom:16px}.progress-fill{height:100%;background:linear-gradient(90deg,#667eea 0%,#764ba2 100%);transition:width .3s}.progress-text{text-align:center;font-size:14px;color:#666;margin-bottom:20px}.button-secondary{background:white;color:#667eea;border:2px solid #667eea;margin-top:12px}.answer-preview{background:#f0f0f0;padding:12px;border-radius:8px;margin-top:8px;font-size:14px;color:#333;word-break:break-word}.admin-link{text-align:center;margin-top:20px;font-size:12px}.admin-link a{color:white;text-decoration:none;opacity:.8}</style>
+</head>
+<body>
+    <div class="container">
+        <div class="welcome-screen active">
+            <div class="card">
+                <h1>🎒 ${d.title}</h1>
+                <p class="subtitle">${d.description}</p>
+                <div class="class-info"><strong>${d.className}</strong> · ${d.teacher} 선생님</div>
+                <div class="input-group">
+                    <label for="studentName">이름</label>
+                    <input type="text" id="studentName" placeholder="홍길동">
+                </div>
+                <div class="input-group">
+                    <label for="studentNumber">번호</label>
+                    <input type="text" id="studentNumber" placeholder="15번">
+                </div>
+                <button onclick="startMission()">시작하기</button>
+            </div>
+        </div>
+        <div class="mission-screen">
+            <div class="card">
+                <h1>${d.title}</h1>
+                <p class="subtitle" id="studentInfo"></p>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div class="progress-text" id="progressText"></div>
+                <div class="input-group">
+                    <label for="missionSelect">미션 선택</label>
+                    <select id="missionSelect" onchange="selectMission()"><option value="">미션을 선택하세요</option></select>
+                </div>
+                <div id="missionDetail" style="display:none">
+                    <div id="missionImageContainer"></div>
+                    <div class="input-group">
+                        <label>미션 내용</label>
+                        <div id="missionDescription" style="background:#f8f9fa;padding:12px;border-radius:8px;margin-bottom:16px;white-space:pre-wrap"></div>
+                    </div>
+                    <div class="input-group">
+                        <label for="answer">답변</label>
+                        <textarea id="answer" placeholder="답변을 입력하세요"></textarea>
+                    </div>
+                    <div id="previousAnswer" style="display:none">
+                        <label>이전 제출 답변</label>
+                        <div class="answer-preview" id="previousAnswerText"></div>
+                    </div>
+                    <button onclick="submitAnswer()">제출하기</button>
+                    <button class="button-secondary" onclick="showSummary()">진행상황 보기</button>
+                </div>
+            </div>
+            <div class="card mission-list" id="missionList"></div>
+        </div>
+        <div class="summary-screen">
+            <div class="card">
+                <div style="text-align:center;font-size:48px;margin-bottom:16px">🎉</div>
+                <h1>진행 상황</h1>
+                <p class="subtitle" id="summaryInfo"></p>
+                <div class="progress-bar"><div class="progress-fill" id="summaryProgressFill"></div></div>
+                <div class="progress-text" id="summaryProgressText"></div>
+                <div id="summaryList"></div>
+                <button onclick="backToMission()">계속하기</button>
+                <button class="button-secondary" onclick="resetStudent()">처음으로</button>
+            </div>
+        </div>
+        <div class="admin-link"><a href="https://console.firebase.google.com/" target="_blank">📊 Firebase에서 답변 확인하기</a></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getDatabase, ref, set, get, child } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+
+        const firebaseConfig = ${configStr};
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+
+        window.missions = ${missionsStr};
+        window.CLASS_NAME = '${d.className}';
+        window.currentStudent = null;
+        window.database = database;
+        window.dbRef = ref;
+        window.dbSet = set;
+        window.dbGet = get;
+        window.dbChild = child;
+
+        window.startMission = function() {
+            const n = document.getElementById('studentName').value.trim();
+            const num = document.getElementById('studentNumber').value.trim();
+            if(!n || !num) { alert('이름과 번호 입력 필요'); return; }
+            
+            window.currentStudent = { id: n + '_' + num, name: n, number: num };
+            
+            const sel = document.getElementById('missionSelect');
+            sel.innerHTML = '<option value="">미션 선택</option>';
+            missions.forEach(m => {
+                const o = document.createElement('option');
+                o.value = m.id;
+                o.textContent = m.name;
+                sel.appendChild(o);
+            });
+            
+            document.querySelector('.welcome-screen').classList.remove('active');
+            document.querySelector('.mission-screen').classList.add('active');
+            document.getElementById('studentInfo').textContent = n + ' (' + num + ')';
+            
+            loadStudentData();
+        };
+
+        window.loadStudentData = async function() {
+            try {
+                const snapshot = await get(child(ref(database), \`missions/\${CLASS_NAME}/\${currentStudent.id}\`));
+                if (snapshot.exists()) {
+                    window.studentMissions = snapshot.val();
+                } else {
+                    window.studentMissions = {};
+                }
+                updateProgress();
+                updateMissionList();
+            } catch(error) {
+                console.error('데이터 로드 실패:', error);
+                window.studentMissions = {};
+                updateProgress();
+                updateMissionList();
+            }
+        };
+
+        window.selectMission = function() {
+            const mid = document.getElementById('missionSelect').value;
+            if(!mid) { document.getElementById('missionDetail').style.display='none'; return; }
+            
+            const m = missions.find(x => x.id == mid);
+            const ic = document.getElementById('missionImageContainer');
+            ic.innerHTML = m.image ? '<img src="' + m.image + '" class="mission-image">' : '';
+            document.getElementById('missionDescription').textContent = m.description;
+            
+            const pa = window.studentMissions && window.studentMissions[mid];
+            if(pa) {
+                document.getElementById('previousAnswer').style.display = 'block';
+                document.getElementById('previousAnswerText').textContent = pa.answer;
+                document.getElementById('answer').value = pa.answer;
+            } else {
+                document.getElementById('previousAnswer').style.display = 'none';
+                document.getElementById('answer').value = '';
+            }
+            document.getElementById('missionDetail').style.display = 'block';
+        };
+
+        window.submitAnswer = async function() {
+            const mid = document.getElementById('missionSelect').value;
+            const ans = document.getElementById('answer').value.trim();
+            if(!mid) { alert('미션 선택 필요'); return; }
+            if(!ans) { alert('답변 입력 필요'); return; }
+            
+            try {
+                const missionData = {
+                    answer: ans,
+                    timestamp: new Date().toISOString(),
+                    studentName: currentStudent.name,
+                    studentNumber: currentStudent.number
+                };
+                
+                await set(ref(database, \`missions/\${CLASS_NAME}/\${currentStudent.id}/\${mid}\`), missionData);
+                
+                if (!window.studentMissions) window.studentMissions = {};
+                window.studentMissions[mid] = missionData;
+                
+                alert('✅ 제출 완료! Firebase에 저장되었습니다.');
+                document.getElementById('missionSelect').value = '';
+                document.getElementById('answer').value = '';
+                document.getElementById('missionDetail').style.display = 'none';
+                updateProgress();
+                updateMissionList();
+            } catch(error) {
+                alert('❌ 제출 실패: ' + error.message);
+            }
+        };
+
+        window.updateProgress = function() {
+            const c = window.studentMissions ? Object.keys(window.studentMissions).length : 0;
+            const t = missions.length;
+            const p = (c / t) * 100;
+            document.getElementById('progressFill').style.width = p + '%';
+            document.getElementById('progressText').textContent = c + ' / ' + t + ' 완료';
+        };
+
+        window.updateMissionList = function() {
+            const l = document.getElementById('missionList');
+            l.innerHTML = '<h2 style="font-size:18px;margin-bottom:12px;color:#333">미션 현황</h2>';
+            missions.forEach(m => {
+                const c = window.studentMissions && window.studentMissions[m.id];
+                const i = document.createElement('div');
+                i.className = 'mission-item' + (c ? ' completed' : '');
+                i.innerHTML = '<span class="mission-name">' + m.name + '</span><span class="mission-status ' + (c ? 'status-completed' : 'status-pending') + '">' + (c ? '완료' : '미완료') + '</span>';
+                l.appendChild(i);
+            });
+        };
+
+        window.showSummary = function() {
+            const c = window.studentMissions ? Object.keys(window.studentMissions).length : 0;
+            const t = missions.length;
+            const p = (c / t) * 100;
+            document.getElementById('summaryInfo').textContent = currentStudent.name + ' (' + currentStudent.number + ')';
+            document.getElementById('summaryProgressFill').style.width = p + '%';
+            document.getElementById('summaryProgressText').textContent = c + ' / ' + t + ' 완료 (' + Math.round(p) + '%)';
+            
+            const sl = document.getElementById('summaryList');
+            sl.innerHTML = '';
+            missions.forEach(m => {
+                const md = window.studentMissions && window.studentMissions[m.id];
+                const i = document.createElement('div');
+                i.className = 'mission-item' + (md ? ' completed' : '');
+                i.style.marginTop = '12px';
+                let ct = '<div style="margin-bottom:8px"><strong>' + m.name + '</strong></div>';
+                if(md) {
+                    const dt = new Date(md.timestamp);
+                    ct += '<div style="font-size:12px;color:#666;margin-bottom:4px">제출: ' + dt.toLocaleString('ko-KR') + '</div><div style="font-size:14px;color:#333">' + md.answer + '</div>';
+                } else {
+                    ct += '<div style="font-size:14px;color:#999">미제출</div>';
+                }
+                i.innerHTML = ct;
+                sl.appendChild(i);
+            });
+            document.querySelector('.mission-screen').classList.remove('active');
+            document.querySelector('.summary-screen').classList.add('active');
+        };
+
+        window.backToMission = function() {
+            document.querySelector('.summary-screen').classList.remove('active');
+            document.querySelector('.mission-screen').classList.add('active');
+        };
+
+        window.resetStudent = function() {
+            window.currentStudent = null;
+            window.studentMissions = {};
+            document.getElementById('studentName').value = '';
+            document.getElementById('studentNumber').value = '';
+            document.querySelector('.summary-screen').classList.remove('active');
+            document.querySelector('.welcome-screen').classList.add('active');
+        };
+    <\/script>
+</body>
+</html>`;
+        }
+
+        function closeModal() {
+            document.getElementById('shareModal').classList.remove('active');
+            document.getElementById('successMessage').classList.remove('show');
+        }
+
+        function openTemplateModal() {
+            document.getElementById('templateModal').classList.add('active');
+        }
+
+        function closeTemplateModal() {
+            document.getElementById('templateModal').classList.remove('active');
+        }
+
+        function applyTemplate(type) {
+            let t = {};
+            if(type==='jeju') t = {title:'제주도 수학여행',desc:'제주의 자연과 문화 체험',missions:[{title:'성산일출봉 탐방',description:'지질학적 특징 조사'},{title:'전통시장 체험',description:'특산물 3가지 찾기'},{title:'한라산 생태',description:'식물/동물 관찰 기록'}]};
+            else if(type==='gyeongju') t = {title:'경주 역사 탐방',desc:'신라 천년의 역사',missions:[{title:'불국사 탐구',description:'건축적 특징 조사'},{title:'석굴암',description:'예술적 가치 설명'},{title:'천마총',description:'유물 조사'}]};
+            else t = {title:'수학여행 미션',desc:'미션 수행',missions:[{title:'미션 1',description:''},{title:'미션 2',description:''},{title:'미션 3',description:''}]};
+            document.getElementById('formTitle').value = t.title;
+            document.getElementById('formDescription').value = t.desc;
+            questions = [];
+            id = 1;
+            t.missions.forEach(m => questions.push({id:id++, title:m.title, description:m.description, image:null}));
+            render();
+            closeTemplateModal();
+        }
+
+        init();
+    </script>
+</body>
+</html>
